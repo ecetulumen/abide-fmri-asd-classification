@@ -41,6 +41,8 @@ ROI time series. For `rois_ho`, 111 ROIs produce 6,105 unique undirected
 edges:
 
 ```python
+import numpy as np
+
 correlation_matrix = np.corrcoef(roi_time_series, rowvar=False)
 upper_triangle = np.triu_indices(111, k=1)
 features = correlation_matrix[upper_triangle]
@@ -152,4 +154,3 @@ untouched.
 Feature selection and standardization are fitted only on the training portion
 of each fold. Duplicate subject identifiers cause an error to reduce the risk
 of subject-level leakage.
-
