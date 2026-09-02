@@ -81,6 +81,12 @@ abide-fmri-asd-classification/
 │   ├── models.py          # PyTorch MLP
 │   ├── plots.py           # Training plots and Pearson FC maps
 │   └── training.py        # One-fold training and inference
+├── results/
+│   ├── accuracy_curve.png
+│   ├── conf_matrix.png
+│   ├── conf_matrix_balanced.png
+│   ├── fold_performance.png
+│   └── roc_curve.png
 ├── train_model.py         # 10-fold training entry point
 ├── visualize_fc.py        # Pearson FC map entry point
 ├── requirements.txt
@@ -141,6 +147,27 @@ python visualize_fc.py \
 
 The script saves a four-panel overview together with separate ASD, TD and
 ASD-TD matrix figures and a JSON file containing group-level summary values.
+
+## Results
+
+Selected outputs from the final experiment are stored in the `results/`
+directory and displayed below.
+
+| ROC curve | Confusion matrix |
+| --- | --- |
+| ![ROC curve](results/roc_curve.png) | ![Confusion matrix](results/conf_matrix.png) |
+
+| Training accuracy | Fold-level performance |
+| --- | --- |
+| ![Training and validation accuracy](results/accuracy_curve.png) | ![Fold-level performance](results/fold_performance.png) |
+
+### Balanced-loss confusion matrix
+
+![Balanced-loss confusion matrix](results/conf_matrix_balanced.png)
+
+The Pearson FC visualization script is included in the repository, but its
+generated overview image is not committed yet. When available, it can be added
+as `results/pearson_fc_overview.png`.
 
 ## Evaluation note
 
