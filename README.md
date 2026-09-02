@@ -165,9 +165,13 @@ directory and displayed below.
 
 ![Balanced-loss confusion matrix](results/conf_matrix_balanced.png)
 
-The Pearson FC visualization script is included in the repository, but its
-generated overview image is not committed yet. When available, it can be added
-as `results/pearson_fc_overview.png`.
+### Pearson functional-connectivity maps
+
+![ASD and TD Pearson functional-connectivity maps](results/pearson_fc_overview.png)
+
+The group-mean edge distributions largely overlap (ASD mean Pearson
+`r=0.294`; TD mean Pearson `r=0.299`). The ASD-TD matrix is presented as a
+descriptive group comparison rather than a statistical significance map.
 
 ## Evaluation note
 
