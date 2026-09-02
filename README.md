@@ -5,68 +5,85 @@ resting-state fMRI functional-connectivity features from the ABIDE dataset.
 The final experiment uses Pearson connectivity from the Harvard-Oxford
 (`rois_ho`) atlas and a class-weighted multilayer perceptron (MLP).
 
-## Dataset acquisition
+## Dataset acquisition and feature preparation
 
-The ROI time series were obtained from **ABIDE I** through the
+The ROI time series are obtained from **ABIDE I** through the
 [ABIDE Preprocessed Connectomes Project (PCP)](http://preprocessed-connectomes-project.org/abide/)
 using Nilearn's
 [`fetch_abide_pcp`](https://nilearn.github.io/stable/modules/generated/nilearn.datasets.fetch_abide_pcp.html)
 function.
 
-The original multi-atlas download used the C-PAC preprocessing pipeline,
-0.01-0.1 Hz band-pass filtering, no global signal regression and the available
-quality-control filter:
+The included `prepare_data.py` script reproduces the project's data-preparation
+stage without Google Drive paths. It downloads the following derivatives using
+the C-PAC pipeline, 0.01-0.1 Hz band-pass filtering, no global signal regression
+and the available quality-control filter:
 
-```python
-from nilearn.datasets import fetch_abide_pcp
+- `rois_aal`
+- `rois_cc200`
+- `rois_ho`
+- `rois_tt`
 
-abide = fetch_abide_pcp(
-    data_dir="data/abide_pcp",
-    pipeline="cpac",
-    band_pass_filtering=True,
-    global_signal_regression=False,
-    derivatives=["rois_aal", "rois_cc200", "rois_ho", "rois_tt"],
-    quality_checked=True,
-)
+After installing the dependencies, run:
+
+```bash
+python prepare_data.py \
+  --download-dir data/abide_pcp \
+  --output-dir data/processed
 ```
 
-Only subjects with valid ROI time-series files across all four atlases were
-retained in the common cohort. This produced **846 subjects: 391 ASD and 455
-TD**. The phenotype field `DX_GROUP` was converted from the original ABIDE
-coding (`1=ASD`, `2=control`) to the model labels used here (`1=ASD`,
-`0=TD`).
+For a small download test, the subject count and atlas list can be limited:
 
-For each subject, Pearson correlations were calculated between every pair of
-ROI time series. For `rois_ho`, 111 ROIs produce 6,105 unique undirected
-edges:
-
-```python
-import numpy as np
-
-correlation_matrix = np.corrcoef(roi_time_series, rowvar=False)
-upper_triangle = np.triu_indices(111, k=1)
-features = correlation_matrix[upper_triangle]
+```bash
+python prepare_data.py \
+  --download-dir data/abide_pcp \
+  --output-dir data/processed/test \
+  --n-subjects 20 \
+  --atlases rois_ho
 ```
 
-The prepared feature cache is stored as an NPZ archive containing:
+For every subject and atlas, the script:
+
+1. loads the ROI time series in `time points x ROIs` orientation;
+2. calculates the ROI-to-ROI Pearson correlation matrix;
+3. extracts the upper triangle with `numpy.triu_indices(..., k=1)`;
+4. keeps subjects with valid files across every requested atlas;
+5. aligns all atlases to the same subject order; and
+6. saves compressed NPZ caches containing `X`, `y` and `subjects`.
+
+The full four-atlas run used in this project produced **846 common subjects:
+391 ASD and 455 TD**. The ABIDE phenotype field `DX_GROUP` is converted from
+the original coding (`1=ASD`, `2=control`) to the model labels used here
+(`1=ASD`, `0=TD`). For `rois_ho`, 111 ROIs produce 6,105 unique undirected
+edges.
+
+The training file is created at:
+
+```text
+data/processed/cpac_rois_ho_FILTERED_corr_features_FIXED.npz
+```
+
+Its arrays have the following structure:
 
 - `X`: shape `(846, 6105)`, Pearson-FC upper-triangle vectors
 - `y`: shape `(846,)`, where `0=TD` and `1=ASD`
 - `subjects`: shape `(846,)`, unique subject identifiers
 
-The ABIDE data and generated NPZ cache are not included in this repository.
+`feature_summary.csv` and `feature_metadata.json` are also written to the
+processed-data directory. Downloaded ABIDE files and generated caches are
+excluded from Git and are not distributed in this repository.
 
 ## Analysis pipeline
 
-1. Load the prepared `rois_ho` Pearson-FC feature vectors.
-2. Apply ANOVA F-score feature selection inside each training fold.
-3. Standardize features using statistics learned from the training fold only.
-4. Train a class-weighted MLP with Gaussian input noise, label smoothing,
+1. Download ABIDE I PCP ROI time series and build aligned Pearson-FC caches.
+2. Load the prepared `rois_ho` feature vectors.
+3. Apply ANOVA F-score feature selection inside each training fold.
+4. Standardize features using statistics learned from the training fold only.
+5. Train a class-weighted MLP with Gaussian input noise, label smoothing,
    dropout, AdamW and early stopping.
-5. Evaluate with stratified 10-fold cross-validation.
-6. Save accuracy, balanced accuracy, macro F1, ROC-AUC, confusion matrix,
+6. Evaluate with stratified 10-fold cross-validation.
+7. Save accuracy, balanced accuracy, macro F1, ROC-AUC, confusion matrix,
    training curves and fold-level results.
-7. Reconstruct group-level FC matrices and visualize ASD, TD and ASD-TD
+8. Reconstruct group-level FC matrices and visualize ASD, TD and ASD-TD
    connectivity patterns.
 
 ## Repository structure
@@ -75,20 +92,23 @@ The ABIDE data and generated NPZ cache are not included in this repository.
 abide-fmri-asd-classification/
 ├── src/
 │   ├── __init__.py
-│   ├── config.py          # Hyperparameters
-│   ├── data.py            # NPZ loading and FC matrix reconstruction
-│   ├── metrics.py         # Evaluation and history utilities
-│   ├── models.py          # PyTorch MLP
-│   ├── plots.py           # Training plots and Pearson FC maps
-│   └── training.py        # One-fold training and inference
+│   ├── config.py               # Hyperparameters
+│   ├── data.py                 # NPZ loading and FC reconstruction
+│   ├── feature_extraction.py   # ROI time series to aligned Pearson features
+│   ├── metrics.py              # Evaluation and history utilities
+│   ├── models.py               # PyTorch MLP
+│   ├── plots.py                # Training plots and Pearson FC maps
+│   └── training.py             # One-fold training and inference
 ├── results/
 │   ├── accuracy_curve.png
 │   ├── conf_matrix.png
 │   ├── conf_matrix_balanced.png
 │   ├── fold_performance.png
+│   ├── pearson_fc_overview.png
 │   └── roc_curve.png
-├── train_model.py         # 10-fold training entry point
-├── visualize_fc.py        # Pearson FC map entry point
+├── prepare_data.py             # ABIDE download and feature-cache entry point
+├── train_model.py              # 10-fold training entry point
+├── visualize_fc.py             # Pearson FC map entry point
 ├── requirements.txt
 └── .gitignore
 ```
@@ -114,8 +134,7 @@ On Windows, activate the environment with:
 
 ## Model training
 
-Run the following command from the repository root after preparing the NPZ
-feature cache:
+After running `prepare_data.py`, start the final experiment with:
 
 ```bash
 python train_model.py \
@@ -129,13 +148,13 @@ the default `--device auto`.
 
 ## Pearson FC map visualization
 
-The map-generation code is included in three parts:
+The map-generation code is divided into three parts:
 
-- `visualize_fc.py` loads the NPZ file and starts the visualization workflow.
-- `src/plots.py` contains `save_pearson_maps()`, which creates the ASD mean,
-  TD mean, ASD-TD difference and edge-distribution plots.
-- `src/data.py` contains `vectors_to_fc_matrices()`, which reconstructs each
-  symmetric 111 x 111 FC matrix from its 6,105 upper-triangle features.
+- `visualize_fc.py` loads the NPZ file and starts the workflow.
+- `src/plots.py` creates the ASD mean, TD mean, ASD-TD difference and
+  edge-distribution plots.
+- `src/data.py` reconstructs each symmetric 111 x 111 FC matrix from its
+  6,105 upper-triangle features.
 
 Run it with:
 
@@ -145,8 +164,8 @@ python visualize_fc.py \
   --output-dir outputs/pearson_maps
 ```
 
-The script saves a four-panel overview together with separate ASD, TD and
-ASD-TD matrix figures and a JSON file containing group-level summary values.
+The script saves a four-panel overview, separate ASD, TD and ASD-TD matrix
+figures, and a JSON file containing group-level summary values.
 
 ## Results
 
@@ -161,9 +180,9 @@ directory and displayed below.
 | --- | --- |
 | ![Training and validation accuracy](results/accuracy_curve.png) | ![Fold-level performance](results/fold_performance.png) |
 
-### Balanced-loss confusion matrix
+### Normalized confusion matrix
 
-![Balanced-loss confusion matrix](results/conf_matrix_balanced.png)
+![Normalized confusion matrix](results/conf_matrix_balanced.png)
 
 ### Pearson functional-connectivity maps
 
