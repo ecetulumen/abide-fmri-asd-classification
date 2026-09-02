@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ABIDE data, trained models and generated outputs
+*.npz
+*.npy
+*.pt
+*.pth
+data/processed/
+outputs/*
+!outputs/.gitkeep
